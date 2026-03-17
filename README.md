@@ -1,4 +1,4 @@
-﻿# Research Animals Procurement Agent (Demo)
+﻿# Research Animals Procurement Agent (Demo) 
 
 Complete runnable demo with FastAPI + SQLite backend and a CLI interface. The demo includes vendor matching, strain equivalence recommendations, lead time planning, order splitting, compliance checks, cage capacity checks, RFQ generation, and a procurement history data flywheel.
 
