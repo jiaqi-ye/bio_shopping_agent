@@ -106,6 +106,7 @@ pip install -r backend/requirements.txt
 
 # Start backend server
 uvicorn backend.main:app --reload
+```
 
 Backend will be available at:
 
