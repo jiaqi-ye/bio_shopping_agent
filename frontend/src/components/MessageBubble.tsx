@@ -37,16 +37,88 @@ function decodeHtmlEntities(value: string): string {
 }
 
 function normalizeCellText(value: string | null | undefined): string {
-  return (value ?? "").replace(/\s+/g, " ").trim();
+  return (value ?? "")
+    .replace(/\u00a0/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function normalizeHtmlSpacing(rawHtml: string): string {
+  if (!rawHtml) return rawHtml;
+
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(rawHtml, "text/html");
+
+  const hasMeaningfulChild = (node: Element) => {
+    return !!node.querySelector(
+      "img, table, ul, ol, li, pre, code, blockquote, thead, tbody, tr, td, th"
+    );
+  };
+
+  const isEmptyNode = (node: Element) => {
+    const text = (node.textContent ?? "")
+      .replace(/\u00a0/g, "")
+      .replace(/\s+/g, "")
+      .trim();
+
+    return text.length === 0 && !hasMeaningfulChild(node);
+  };
+
+  const removableSelectors = ["p", "div", "span", "section", "article"];
+  removableSelectors.forEach((selector) => {
+    doc.querySelectorAll(selector).forEach((el) => {
+      if (isEmptyNode(el)) {
+        el.remove();
+      }
+    });
+  });
+
+  // Collapse long consecutive <br> runs to at most 2
+  doc.querySelectorAll("br").forEach((br) => {
+    let count = 1;
+    let next = br.nextSibling;
+
+    while (
+      next &&
+      next.nodeType === Node.ELEMENT_NODE &&
+      (next as Element).tagName === "BR"
+    ) {
+      count += 1;
+      const toRemove = next;
+      next = next.nextSibling;
+
+      if (count > 2) {
+        toRemove.parentNode?.removeChild(toRemove);
+      }
+    }
+  });
+
+  let cleaned = doc.body.innerHTML || "";
+
+  // Remove leading empty blocks, spaces, nbsp, and line breaks
+  cleaned = cleaned.replace(
+    /^(?:\s|&nbsp;|<br\s*\/?>|<p>\s*<\/p>|<div>\s*<\/div>|<span>\s*<\/span>|<section>\s*<\/section>|<article>\s*<\/article>)+/gi,
+    ""
+  );
+
+  // Remove trailing empty blocks, spaces, nbsp, and line breaks
+  cleaned = cleaned.replace(
+    /(?:\s|&nbsp;|<br\s*\/?>|<p>\s*<\/p>|<div>\s*<\/div>|<span>\s*<\/span>|<section>\s*<\/section>|<article>\s*<\/article>)+$/gi,
+    ""
+  );
+
+  cleaned = cleaned.replace(/\s{3,}/g, " ").trim();
+
+  return cleaned;
 }
 
 function extractTableData(table: HTMLTableElement): TableData | null {
   let headers: string[] = [];
   let rows: string[][] = [];
 
-  const theadHeaders = Array.from(table.querySelectorAll("thead th, thead td")).map((cell) =>
-    normalizeCellText(cell.textContent)
-  );
+  const theadHeaders = Array.from(
+    table.querySelectorAll("thead th, thead td")
+  ).map((cell) => normalizeCellText(cell.textContent));
 
   if (theadHeaders.length > 0) {
     headers = theadHeaders;
@@ -63,7 +135,7 @@ function extractTableData(table: HTMLTableElement): TableData | null {
       .filter((row) => row.some((cell) => cell.length > 0));
   }
 
-  // Fallback if table has no explicit thead/tbody
+  // Fallback for tables without explicit thead/tbody
   if (headers.length === 0 && rows.length === 0) {
     const allRows = Array.from(table.querySelectorAll("tr"))
       .map((row) =>
@@ -93,10 +165,11 @@ function extractTableData(table: HTMLTableElement): TableData | null {
     return null;
   }
 
+  const fallbackHeaders = ["Strain", "Vendor", "Price", "Gene/Mutation"];
   const paddedHeaders =
     headers.length > 0
       ? [...headers, ...Array(Math.max(0, columnCount - headers.length)).fill("")]
-      : Array.from({ length: columnCount }, (_, idx) => `Column ${idx + 1}`);
+      : Array.from({ length: columnCount }, (_, idx) => fallbackHeaders[idx] ?? `Column ${idx + 1}`);
 
   const paddedRows = rows.map((row) => [
     ...row,
@@ -130,6 +203,7 @@ function buildComparisonTable(
 
 function downloadTableAsCsv(tableData: TableData, filename = "table.csv") {
   const escapeCsv = (value: string) => `"${(value ?? "").replace(/"/g, '""')}"`;
+
   const lines = [
     tableData.headers.map(escapeCsv).join(","),
     ...tableData.rows.map((row) => row.map(escapeCsv).join(",")),
@@ -138,10 +212,12 @@ function downloadTableAsCsv(tableData: TableData, filename = "table.csv") {
   const blob = new Blob([lines.join("\n")], {
     type: "text/csv;charset=utf-8;",
   });
+
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
   link.download = filename;
+
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
@@ -183,8 +259,10 @@ function DataTable({ tableData }: { tableData: TableData }) {
 
 export default function MessageBubble({ message }: MessageBubbleProps) {
   const isUser = message.role === "user";
+
   const bubbleBase =
     "max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed border";
+
   const bubbleStyle = isUser
     ? "bg-slate-900 text-white border-slate-900"
     : message.isError
@@ -201,7 +279,10 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
     const rawLooksLikeHtml = /<\/?[a-z][\s\S]*>/i.test(rawContent);
     const decodedLooksLikeHtml = /<\/?[a-z][\s\S]*>/i.test(decodedContent);
 
-    const isHtml = !isUser && !message.isError && (rawLooksLikeHtml || decodedLooksLikeHtml);
+    const isHtml =
+      !isUser &&
+      !message.isError &&
+      (rawLooksLikeHtml || decodedLooksLikeHtml);
 
     if (!isHtml) {
       return {
@@ -227,8 +308,10 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
       tableElement.remove();
     }
 
-    const cleanedHtml = doc.body.innerHTML || "";
-    const text = normalizeCellText(doc.body.textContent || "");
+    const cleanedHtml = normalizeHtmlSpacing(doc.body.innerHTML || "");
+    const text = normalizeCellText(
+      (doc.body.textContent || "").replace(/\u00a0/g, " ")
+    );
 
     return {
       isHtml: true,
@@ -251,35 +334,25 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
     : "";
 
   const hasVendorHeader = /vendor|company|supplier|brand|source/.test(headerText);
+
   const hasComparisonText =
     /compare|comparison|versus|vs\b|vendors|companies|suppliers|cheaper|price|pricing/.test(
       normalizedText
     );
+
   const hasMouseOrVendorContext =
     /mouse|mice|strain|vendor|company|supplier|jax|jackson|taconic|charles river|model/.test(
       normalizedText
     );
 
   const hasMultipleRows = !!activeTableData && activeTableData.rows.length > 1;
+
   const hasEnoughTableStructure =
     !!activeTableData &&
     activeTableData.headers.length > 0 &&
     activeTableData.rows.length > 0;
 
-  const showTableButton =
-    !!activeTableData &&
-    hasEnoughTableStructure &&
-    (
-      !!message.comparison?.comparison_mode ||
-      hasVendorHeader ||
-      hasComparisonText ||
-      hasMouseOrVendorContext ||
-      hasMultipleRows
-    );
-
-  const isLargeTable =
-    !!activeTableData &&
-    (activeTableData.rows.length > 8 || activeTableData.headers.length > 5);
+  const showTableButton = !!activeTableData && hasEnoughTableStructure;
 
   const handleDownloadCsv = () => {
     if (!activeTableData) return;
@@ -312,16 +385,13 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
               >
                 {showTable ? "Hide Table" : "View as Table"}
               </button>
-
-              {isLargeTable && (
-                <button
-                  type="button"
-                  className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100"
-                  onClick={() => setShowFullScreen(true)}
-                >
-                  Full Screen
-                </button>
-              )}
+              <button
+                type="button"
+                className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100"
+                onClick={() => setShowFullScreen(true)}
+              >
+                Full Screen
+              </button>
             </div>
           )}
 

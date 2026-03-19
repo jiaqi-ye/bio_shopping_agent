@@ -69,6 +69,10 @@ def get_user_profile(conversation_id: str) -> Optional[Dict[str, Any]]:
 def upsert_user_profile(
     conversation_id: str,
     username: str,
+    position: str,
+    lab_institution: str,
+    contact_info: str,
+    email: str,
     password: str,
     shipping_address: str,
     current_mouse_count: int,
@@ -82,13 +86,21 @@ def upsert_user_profile(
             INSERT INTO user_profiles (
                 conversation_id,
                 username,
+                position,
+                lab_institution,
+                contact_info,
+                email,
                 password,
                 shipping_address,
                 current_mouse_count,
                 cage_capacity
-            ) VALUES (?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(conversation_id) DO UPDATE SET
                 username=excluded.username,
+                position=excluded.position,
+                lab_institution=excluded.lab_institution,
+                contact_info=excluded.contact_info,
+                email=excluded.email,
                 password=excluded.password,
                 shipping_address=excluded.shipping_address,
                 current_mouse_count=excluded.current_mouse_count,
@@ -97,6 +109,10 @@ def upsert_user_profile(
             (
                 conversation_id,
                 username,
+                position,
+                lab_institution,
+                contact_info,
+                email,
                 password,
                 shipping_address,
                 current_mouse_count,

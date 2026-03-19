@@ -44,6 +44,10 @@ type ComparisonPayload = {
 type UserProfile = {
   user_id: string;
   username: string;
+  position: string;
+  lab_institution: string;
+  contact_info: string;
+  email: string;
   shipping_address: string;
   current_mouse_count: number;
   cage_capacity: number;
@@ -170,11 +174,23 @@ export default function App() {
   };
 
 
-  const handleLogin = async (payload: Omit<UserProfile, "user_id">) => {
+  const handleLogin = async (payload: {
+    username: string;
+    lab_institution: string;
+    contact_info: string;
+    password: string;
+    shipping_address: string;
+    current_mouse_count: number;
+    cage_capacity: number;
+  }) => {
     const response = await fetch(loginUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
+      body: JSON.stringify({
+        ...payload,
+        position: "",
+        email: payload.contact_info
+      })
     });
     if (!response.ok) {
       throw new Error("Login failed");
@@ -183,6 +199,12 @@ export default function App() {
     window.localStorage.setItem(sessionIdKey, data.user_id);
     setUserProfile(data);
     setShowLogin(false);
+  };
+
+  const handleLogout = () => {
+    window.localStorage.removeItem(sessionIdKey);
+    setUserProfile(null);
+    setShowLogin(true);
   };
 
   const handleSend = async () => {
@@ -270,7 +292,13 @@ export default function App() {
 
         <main className="flex-1 flex flex-col bg-slate-100">
           <div className="flex-1 overflow-hidden">
-            <ChatWindow conversation={activeConversation} isSending={isSending} onQuickAction={handleQuickAction} userProfile={userProfile} />
+            <ChatWindow
+              conversation={activeConversation}
+              isSending={isSending}
+              onQuickAction={userProfile ? handleQuickAction : undefined}
+              userProfile={userProfile}
+              onLogout={handleLogout}
+            />
           </div>
           <InputBox
             value={draft}

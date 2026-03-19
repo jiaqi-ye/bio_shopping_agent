@@ -4,6 +4,8 @@ type LoginModalProps = {
   open: boolean;
   onSubmit: (payload: {
     username: string;
+    lab_institution: string;
+    contact_info: string;
     password: string;
     shipping_address: string;
     current_mouse_count: number;
@@ -13,6 +15,8 @@ type LoginModalProps = {
 
 export default function LoginModal({ open, onSubmit }: LoginModalProps) {
   const [username, setUsername] = useState("");
+  const [labInstitution, setLabInstitution] = useState("");
+  const [contactInfo, setContactInfo] = useState("");
   const [password, setPassword] = useState("");
   const [shippingAddress, setShippingAddress] = useState("");
   const [currentMouseCount, setCurrentMouseCount] = useState("0");
@@ -28,6 +32,8 @@ export default function LoginModal({ open, onSubmit }: LoginModalProps) {
     try {
       await onSubmit({
         username: username.trim(),
+        lab_institution: labInstitution.trim(),
+        contact_info: contactInfo.trim(),
         password,
         shipping_address: shippingAddress.trim(),
         current_mouse_count: Number(currentMouseCount || 0),
@@ -52,6 +58,18 @@ export default function LoginModal({ open, onSubmit }: LoginModalProps) {
             placeholder="Username"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
+          />
+          <input
+            className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+            placeholder="Lab / Institution"
+            value={labInstitution}
+            onChange={(e) => setLabInstitution(e.target.value)}
+          />
+          <input
+            className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+            placeholder="Contact information (email/phone)"
+            value={contactInfo}
+            onChange={(e) => setContactInfo(e.target.value)}
           />
           <input
             className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
@@ -87,7 +105,14 @@ export default function LoginModal({ open, onSubmit }: LoginModalProps) {
         <button
           type="button"
           onClick={handleSubmit}
-          disabled={loading || !username.trim() || !password.trim() || !shippingAddress.trim()}
+          disabled={
+            loading ||
+            !username.trim() ||
+            !labInstitution.trim() ||
+            !contactInfo.trim() ||
+            !password.trim() ||
+            !shippingAddress.trim()
+          }
           className="mt-4 w-full rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:bg-slate-300"
         >
           {loading ? "Signing in..." : "Sign in"}

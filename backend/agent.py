@@ -9,6 +9,7 @@ from typing import Any, Dict, List, Optional
 from urllib.parse import quote_plus
 
 from .llm_client import can_use_openai, generate_procurement_response, generate_response
+from .embeddings import get_embedding
 from .logic import (
     build_chat_response,
     build_procurement_context,
@@ -21,22 +22,20 @@ from .rag_service import rag_service
 from .web_scraper import default_vendor_urls, discover_vendor_urls, refresh_sources
 
 
-IRRELEVANT_KEYWORDS = [
-    "weather",
-    "sports",
-    "movie",
-    "music",
-    "politics",
-    "stocks",
-    "crypto",
-    "joke",
-    "game",
-    "restaurant",
-    "vacation",
-    "travel",
+DOMAIN_ANCHORS = [
+    "I need to procure laboratory mice for an experiment and compare vendors.",
+    "Requesting a quote for mouse strains with lead times and pricing.",
+    "Lab procurement planning: strains, quantities, cage capacity, and compliance.",
+    "Order laboratory reagents or antibodies from approved vendors.",
+    "Generate an RFQ for animal procurement with shipping details.",
+    "Compare vendors for research animal models and availability.",
 ]
 
-IRRELEVANT_RESPONSE = "This request is not related to laboratory procurement."
+IRRELEVANT_RESPONSE = (
+    "This request is not related to laboratory procurement. "
+    "Please ask a lab procurement question (e.g., species/strain, quantity, vendor preference, "
+    "experiment start date, or budget) so I can help."
+)
 
 GREETING_RESPONSE = (
     "Hello! Tell me what you need to procure and I will draft a sourcing plan with recommended vendors, lead times, "
@@ -151,9 +150,46 @@ class ConversationStore:
 memory_store = ConversationStore()
 
 
+_DOMAIN_EMBEDDINGS: Optional[List[List[float]]] = None
+
+
+def _get_domain_embeddings() -> List[List[float]]:
+    global _DOMAIN_EMBEDDINGS
+    if _DOMAIN_EMBEDDINGS is None:
+        _DOMAIN_EMBEDDINGS = [get_embedding(text) for text in DOMAIN_ANCHORS]
+    return _DOMAIN_EMBEDDINGS
+
+
+def _cosine_similarity(a: List[float], b: List[float]) -> float:
+    if not a or not b:
+        return 0.0
+    dot = 0.0
+    norm_a = 0.0
+    norm_b = 0.0
+    for x, y in zip(a, b):
+        dot += x * y
+        norm_a += x * x
+        norm_b += y * y
+    if norm_a == 0 or norm_b == 0:
+        return 0.0
+    return dot / ((norm_a ** 0.5) * (norm_b ** 0.5))
+
+
 def is_irrelevant(message: str) -> bool:
-    lowered = message.lower()
-    return any(keyword in lowered for keyword in IRRELEVANT_KEYWORDS)
+    text = (message or "").strip()
+    if not text:
+        return True
+
+    # Allow simple greetings to pass through.
+    if text.lower() in {"hi", "hello", "hey"}:
+        return False
+
+    query_embedding = get_embedding(text)
+    anchor_embeddings = _get_domain_embeddings()
+    max_similarity = max((_cosine_similarity(query_embedding, emb) for emb in anchor_embeddings), default=0.0)
+
+    # Tuned threshold for domain relevance. Lower = more permissive, higher = stricter.
+    return max_similarity < 0.22
 
 
 def _clean_display_value(value: Any) -> str:
@@ -221,9 +257,17 @@ def _is_common_mice_request(message: str) -> bool:
     return "common mice" in lowered or "common mouse" in lowered or "common lab mice" in lowered
 
 
+def _is_vendor_exclusive_compare_request(message: str) -> bool:
+    lowered = message.lower()
+    return "vendor-exclusive" in lowered or "vendor exclusive" in lowered
+
+
 def _parse_profile_fields(message: str) -> Dict[str, Optional[str]]:
     fields = {
         "username": None,
+        "position": None,
+        "lab_institution": None,
+        "contact_info": None,
         "password": None,
         "shipping_address": None,
         "current_mouse_count": None,
@@ -231,6 +275,9 @@ def _parse_profile_fields(message: str) -> Dict[str, Optional[str]]:
     }
     patterns = {
         "username": r"username\s*:\s*([^\n,]+)",
+        "position": r"position\s*:\s*([^\n,]+)",
+        "lab_institution": r"(lab|institution)\s*:\s*([^\n,]+)",
+        "contact_info": r"(contact|email|phone)\s*:\s*([^\n,]+)",
         "password": r"password\s*:\s*([^\n,]+)",
         "shipping_address": r"shipping\s*address\s*:\s*([^\n]+)",
         "current_mouse_count": r"current\s*mouse\s*count\s*:\s*(\d+)",
@@ -239,13 +286,19 @@ def _parse_profile_fields(message: str) -> Dict[str, Optional[str]]:
     for key, pattern in patterns.items():
         match = re.search(pattern, message, re.IGNORECASE)
         if match:
-            fields[key] = match.group(1).strip()
+            if key in {"lab_institution", "contact_info"} and match.lastindex and match.lastindex >= 2:
+                fields[key] = match.group(2).strip()
+            else:
+                fields[key] = match.group(1).strip()
     return fields
 
 
 def _profile_prompt(missing_fields: List[str]) -> str:
     labels = {
         "username": "Username",
+        "position": "Position",
+        "lab_institution": "Lab/Institution",
+        "contact_info": "Contact information",
         "password": "Password",
         "shipping_address": "Shipping address",
         "current_mouse_count": "Current mouse count",
@@ -287,6 +340,31 @@ def _is_order_request(message: str) -> bool:
     )
 
 
+def _is_rfq_email_request(message: str) -> bool:
+    lowered = message.lower()
+    return any(
+        phrase in lowered
+        for phrase in [
+            "rfq",
+            "request for quotation",
+            "quote",
+            "quotation",
+            "order email",
+            "email template",
+            "rfq/order email",
+            "write an email",
+            "write email",
+            "draft email",
+            "email draft",
+            "email",
+            "邮件",
+            "写邮件",
+            "邮件模板",
+            "邮件草稿",
+        ]
+    )
+
+
 def _build_order_links(strain: Optional[str]) -> str:
     vendors = load_vendors_snapshot()
     selected = []
@@ -301,6 +379,96 @@ def _build_order_links(strain: Optional[str]) -> str:
         selected = VENDOR_PRIORITY[:3]
     links = [_render_vendor_link(name, strain) for name in selected[:3]]
     return "<br />".join(links)
+
+
+def _build_rfq_email_template(
+    profile: Optional[Dict[str, Any]],
+    company: Optional[str],
+    strain: Optional[str],
+    quantity: Optional[int],
+    experiment_start: Optional[str],
+) -> str:
+    name = (profile or {}).get("username") or "Lab Contact"
+    position = (profile or {}).get("position") or ""
+    lab_institution = (profile or {}).get("lab_institution") or ""
+    contact_info = (profile or {}).get("contact_info") or ""
+    address = (profile or {}).get("shipping_address") or "Shipping Address"
+    strain_line = strain or "Strain: [please specify]"
+    quantity_line = f"{quantity}" if quantity else "[quantity]"
+    start_line = experiment_start or "[YYYY-MM-DD]"
+
+    company_name = company or "Vendor"
+    subject = f"RFQ: {strain_line} (Qty {quantity_line})"
+    body_lines = [
+        f"Hello {company_name} Team,",
+        "",
+        "I would like to request a quotation for the following laboratory mice:",
+        f"- Strain: {strain_line}",
+        f"- Quantity: {quantity_line}",
+        f"- Experiment start date: {start_line}",
+        f"- Shipping address: {address}",
+        "",
+        "Please confirm availability, lead time, unit pricing, and any shipping costs. "
+        "If the requested strain is not available, please suggest a genetically equivalent alternative.",
+        "",
+        "Best regards,",
+        name,
+    ]
+
+    if position:
+        body_lines.append(position)
+    if lab_institution:
+        body_lines.append(lab_institution)
+    if contact_info:
+        body_lines.append(contact_info)
+
+    body = "\n".join(body_lines).rstrip() + "\n"
+    return (
+        "<div class=\"rfq-email\">"
+        f"<strong>Subject:</strong> {html_escape(subject)}<br />"
+        "<pre style=\"white-space: pre-wrap; word-break: break-word; overflow-wrap: anywhere;\">"
+        f"{html_escape(body)}"
+        "</pre></div>"
+    )
+
+
+def _extract_request_from_history(
+    history: List[Dict[str, str]]
+) -> Dict[str, Optional[str]]:
+    company: Optional[str] = None
+    strain: Optional[str] = None
+    quantity: Optional[str] = None
+    experiment_start: Optional[str] = None
+
+    # Scan recent user messages (most recent first)
+    for item in reversed(history[-8:]):
+        if item.get("role") != "user":
+            continue
+        text = item.get("content", "")
+        if not text:
+            continue
+        context = build_procurement_context(text, cage_config=get_cage_config())
+        if not company:
+            companies = _detect_companies(text)
+            if companies:
+                company = companies[0]
+        if not strain:
+            strain = _extract_mouse_strain(text)
+        if not quantity and context.get("quantity") not in ("not provided", None):
+            quantity = context.get("quantity")
+        if not experiment_start and context.get("experiment_start") not in ("not provided", None):
+            experiment_start = context.get("experiment_start")
+        if strain and quantity and experiment_start:
+            break
+
+    return {
+        "company": company,
+        "strain": strain,
+        "quantity": quantity,
+        "experiment_start": experiment_start,
+    }
+
+
 
 
 def _detect_companies(message: str) -> List[str]:
@@ -424,6 +592,20 @@ def _render_company_links(companies: List[str]) -> str:
     return "<div class=\"company-links\"><strong>References:</strong> " + " | ".join(links) + "</div>"
 
 
+def _append_company_refs(message: str, reply: str) -> str:
+    companies = _detect_companies(message)
+    if not companies:
+        return reply
+    links = _render_company_links(companies)
+    if not links:
+        return reply
+    if "<" in reply and "company-links" in reply:
+        return reply
+    if "<" in reply:
+        return reply + links
+    return _render_html_response(reply, [], companies)
+
+
 
 
 
@@ -457,6 +639,24 @@ def _render_common_mice_overview() -> str:
         + "</ul>"
         "</div>"
     )
+
+
+def _render_vendor_exclusive_comparison() -> str:
+    headers = ["Strain", "Vendor", "Price (est.)", "Gene/Mutation", "Use"]
+    rows = [
+        ["C57BL/6J", "The Jackson Laboratory", "$38–$55", "Wild-type", "General-purpose baseline"],
+        ["BALB/cJ", "The Jackson Laboratory", "$40–$60", "Wild-type", "Immunology, oncology"],
+        ["NSG (NOD scid gamma)", "The Jackson Laboratory", "$115–$160", "Prkdc scid, Il2rg null", "Humanized / PDX"],
+        ["NOD-SCID", "Charles River", "$95–$140", "Prkdc scid", "Immunodeficiency studies"],
+        ["CD-1 (ICR)", "Charles River", "$25–$40", "Outbred", "General toxicology"],
+        ["FVB/NJ", "The Jackson Laboratory", "$40–$65", "Wild-type", "Transgenics, pronuclear injection"],
+        ["DBA/2J", "The Jackson Laboratory", "$40–$60", "Wild-type", "Aging, hearing"],
+        ["129S1/SvImJ", "Taconic Biosciences", "$45–$70", "Wild-type", "Gene targeting backgrounds"],
+        ["A/J", "The Jackson Laboratory", "$40–$60", "Wild-type", "Cancer susceptibility"],
+        ["C3H/HeJ", "Taconic Biosciences", "$40–$65", "Tlr4 mutation", "Immunology, inflammation"],
+    ]
+    table = _render_table(headers, rows, "comparison-table")
+    return table
 
 
 
@@ -506,7 +706,7 @@ def handle_message(message: str, conversation_id: Optional[str], user_id: Option
         memory_store.append(conversation_id or "", "assistant", IRRELEVANT_RESPONSE)
         return {
             "mode": "chat",
-            "message": IRRELEVANT_RESPONSE,
+            "message": _append_company_refs(message, IRRELEVANT_RESPONSE),
             "data": None,
             "sources": None,
         }
@@ -522,13 +722,17 @@ def handle_message(message: str, conversation_id: Optional[str], user_id: Option
             memory_store.append(conversation_id or "", "assistant", prompt)
             return {
                 "mode": "chat",
-                "message": prompt,
+                "message": _append_company_refs(message, prompt),
                 "data": {"profile_required": True},
                 "sources": None,
             }
         upsert_user_profile(
             profile_key,
             fields["username"],
+            fields["position"],
+            fields["lab_institution"],
+            fields["contact_info"],
+            fields["contact_info"],
             fields["password"],
             fields["shipping_address"],
             int(fields["current_mouse_count"]),
@@ -539,7 +743,7 @@ def handle_message(message: str, conversation_id: Optional[str], user_id: Option
         memory_store.append(conversation_id or "", "assistant", confirmation)
         return {
             "mode": "chat",
-            "message": confirmation,
+            "message": _append_company_refs(message, confirmation),
             "data": {"profile_saved": True},
             "sources": None,
         }
@@ -549,7 +753,7 @@ def handle_message(message: str, conversation_id: Optional[str], user_id: Option
         memory_store.append(conversation_id or "", "assistant", GREETING_RESPONSE)
         return {
             "mode": "chat",
-            "message": GREETING_RESPONSE,
+            "message": _append_company_refs(message, GREETING_RESPONSE),
             "data": None,
             "sources": None,
         }
@@ -565,7 +769,65 @@ def handle_message(message: str, conversation_id: Optional[str], user_id: Option
         memory_store.append(conversation_id or "", "assistant", "Common mouse strains overview provided.")
         return {
             "mode": "procurement",
-            "message": reply,
+            "message": _append_company_refs(message, reply),
+            "data": None,
+            "sources": None,
+        }
+
+    if _is_vendor_exclusive_compare_request(message):
+        paragraph = (
+            "Here is a vendor-focused comparison of commonly requested mouse strains. "
+            "These entries highlight typical vendor catalogs, estimated pricing ranges, and key genetic notes "
+            "to help you compare options quickly. Availability and true exclusivity can change, so please verify "
+            "current stock and catalog details on the vendor sites before ordering."
+        )
+        table = _render_vendor_exclusive_comparison()
+        reply = _render_html_response(paragraph, [table], _detect_companies(message))
+        memory_store.append(conversation_id or "", "user", message)
+        memory_store.append(conversation_id or "", "assistant", paragraph)
+        return {
+            "mode": "procurement",
+            "message": _append_company_refs(message, reply),
+            "data": None,
+            "sources": None,
+        }
+
+    if _is_rfq_email_request(message):
+        company = None
+        companies_in_message = _detect_companies(message)
+        if companies_in_message:
+            company = companies_in_message[0]
+        strain = _extract_mouse_strain(message)
+        context = build_procurement_context(message, cage_config=get_cage_config())
+        experiment_start = context.get("experiment_start") if context else None
+        quantity = None
+        try:
+            quantity = int(context.get("quantity", "0")) if context else None
+        except Exception:
+            quantity = None
+
+        history_context = _extract_request_from_history(history)
+        company = company or history_context.get("company")
+        strain = strain or history_context.get("strain")
+        if not quantity:
+            try:
+                quantity = int(history_context.get("quantity") or 0)
+            except Exception:
+                quantity = None
+        experiment_start = experiment_start or history_context.get("experiment_start")
+
+        email_block = _build_rfq_email_template(profile, company, strain, quantity, experiment_start)
+        paragraph = (
+            "Below is a draft RFQ/order email template for laboratory mice. "
+            "It automatically includes your profile name and shipping address, and you can edit the strain, "
+            "quantity, or dates before sending."
+        )
+        reply = _render_html_response(paragraph, [email_block], _detect_companies(message))
+        memory_store.append(conversation_id or "", "user", message)
+        memory_store.append(conversation_id or "", "assistant", paragraph)
+        return {
+            "mode": "procurement",
+            "message": _append_company_refs(message, reply),
             "data": None,
             "sources": None,
         }
@@ -577,7 +839,7 @@ def handle_message(message: str, conversation_id: Optional[str], user_id: Option
         memory_store.append(conversation_id or "", "assistant", reply)
         return {
             "mode": "procurement",
-            "message": reply,
+            "message": _append_company_refs(message, reply),
             "data": None,
             "sources": None,
         }
@@ -604,7 +866,7 @@ def handle_message(message: str, conversation_id: Optional[str], user_id: Option
 
         return {
             "mode": "knowledge",
-            "message": reply,
+            "message": _append_company_refs(message, reply),
             "data": None,
             "sources": sources,
         }
@@ -627,7 +889,7 @@ def handle_message(message: str, conversation_id: Optional[str], user_id: Option
         memory_store.append(conversation_id or "", "assistant", limit_message)
         return {
             "mode": "procurement",
-            "message": limit_message,
+            "message": _append_company_refs(message, limit_message),
             "data": {"order_limit": remaining_capacity},
             "sources": None,
         }
@@ -671,7 +933,7 @@ def handle_message(message: str, conversation_id: Optional[str], user_id: Option
 
     return {
         "mode": "procurement",
-        "message": reply,
+        "message": _append_company_refs(message, reply),
         "data": None,
         "sources": sources,
     }

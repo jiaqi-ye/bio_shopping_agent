@@ -62,9 +62,14 @@ def chat(payload: ChatRequest) -> Dict[str, Any]:
 @app.post("/api/login", response_model=ProfileOut)
 def login(payload: LoginRequest) -> Dict[str, Any]:
     user_id = payload.user_id or f"user-{os.urandom(8).hex()}"
+    email = payload.email or payload.contact_info
     upsert_user_profile(
         user_id,
         payload.username,
+        payload.position or "",
+        payload.lab_institution,
+        payload.contact_info,
+        email,
         payload.password,
         payload.shipping_address,
         payload.current_mouse_count,
@@ -74,6 +79,10 @@ def login(payload: LoginRequest) -> Dict[str, Any]:
     return {
         "user_id": user_id,
         "username": profile.get("username"),
+        "position": profile.get("position"),
+        "lab_institution": profile.get("lab_institution"),
+        "contact_info": profile.get("contact_info"),
+        "email": profile.get("email"),
         "shipping_address": profile.get("shipping_address"),
         "current_mouse_count": profile.get("current_mouse_count"),
         "cage_capacity": profile.get("cage_capacity"),
@@ -88,6 +97,10 @@ def get_profile(user_id: str) -> Dict[str, Any]:
     return {
         "user_id": user_id,
         "username": profile.get("username"),
+        "position": profile.get("position"),
+        "lab_institution": profile.get("lab_institution"),
+        "contact_info": profile.get("contact_info"),
+        "email": profile.get("email"),
         "shipping_address": profile.get("shipping_address"),
         "current_mouse_count": profile.get("current_mouse_count"),
         "cage_capacity": profile.get("cage_capacity"),

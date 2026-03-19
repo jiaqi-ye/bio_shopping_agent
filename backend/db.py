@@ -79,6 +79,10 @@ def init_db() -> None:
             CREATE TABLE IF NOT EXISTS user_profiles (
                 conversation_id TEXT PRIMARY KEY,
                 username TEXT NOT NULL,
+                position TEXT NOT NULL,
+                lab_institution TEXT NOT NULL,
+                contact_info TEXT NOT NULL,
+                email TEXT NOT NULL,
                 password TEXT NOT NULL,
                 shipping_address TEXT NOT NULL,
                 current_mouse_count INTEGER NOT NULL,
@@ -86,6 +90,19 @@ def init_db() -> None:
             )
             """
         )
+
+        # Ensure new columns exist for existing databases.
+        cur.execute("PRAGMA table_info(user_profiles)")
+        existing_cols = {row[1] for row in cur.fetchall()}
+        required_cols = {
+            "position": "TEXT NOT NULL DEFAULT ''",
+            "lab_institution": "TEXT NOT NULL DEFAULT ''",
+            "contact_info": "TEXT NOT NULL DEFAULT ''",
+            "email": "TEXT NOT NULL DEFAULT ''",
+        }
+        for col, col_def in required_cols.items():
+            if col not in existing_cols:
+                cur.execute(f"ALTER TABLE user_profiles ADD COLUMN {col} {col_def}")
 
 
 def seed_db() -> None:

@@ -18,6 +18,12 @@ Behavior:
 - If web evidence is not provided, use general knowledge or reasonable estimates.
 - Do not be overly rigid, robotic, or template-like.
 - Do not invent internal lab facts that are not in the provided context.
+- For all answers (including non-mouse and company-related questions):
+  - Start with one detailed paragraph (3-5 sentences).
+  - Then finish with a concise HTML table summary (<table>...</table>) placed after the paragraph.
+  - Keep the paragraph plain text (no HTML tags).
+  - Keep the table compact (2-4 columns, 3-6 rows) and use short, scannable values.
+  - Avoid excessive blank lines; use at most one blank line between paragraph and table.
 """.strip()
 
 
@@ -29,12 +35,13 @@ Scope:
 - Treat messages that only contain a strain name or shorthand (e.g., "C57BL/6J", "B6", "BALB/c", "NSG") as mouse queries.
 
 Output format:
-1. Start with one short paragraph.
+1. Start with one detailed paragraph (3-5 sentences).
 2. That paragraph must include:
    - price
    - gene/mutation
    - vendor/company
-3. Always add one compact HTML table (<table>...</table>) with exactly these columns:
+3. Keep the paragraph in plain text (no HTML tags).
+4. Always add one compact HTML table (<table>...</table>) with exactly these columns:
    - Strain
    - Vendor
    - Price
@@ -53,6 +60,7 @@ Style rules:
 - Do not output long explanations inside table cells.
 - Output the table as raw HTML (not inside markdown code fences).
 - Do not show HTML tags inside the paragraph text; place the table after the paragraph.
+- Avoid excessive blank lines; use at most one blank line between paragraph and table.
 """.strip()
 
 

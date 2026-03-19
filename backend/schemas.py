@@ -134,6 +134,10 @@ class ChatResponse(BaseModel):
 
 class LoginRequest(BaseModel):
     username: str
+    position: Optional[str] = ""
+    lab_institution: str
+    contact_info: str
+    email: Optional[str] = ""
     password: str
     shipping_address: str
     current_mouse_count: int
@@ -144,6 +148,10 @@ class LoginRequest(BaseModel):
 class ProfileOut(BaseModel):
     user_id: str
     username: str
+    position: str
+    lab_institution: str
+    contact_info: str
+    email: str
     shipping_address: str
     current_mouse_count: int
     cage_capacity: int

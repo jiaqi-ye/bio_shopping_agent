@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import MessageBubble from "./MessageBubble.tsx";
 
 type Message = {
@@ -20,11 +20,25 @@ type ChatWindowProps = {
   conversation?: Conversation;
   isSending: boolean;
   onQuickAction?: (value: string) => void;
-  userProfile?: { username: string };
+  userProfile?: {
+    username: string;
+    lab_institution: string;
+    contact_info: string;
+    email?: string;
+    shipping_address?: string;
+  };
+  onLogout?: () => void;
 };
 
-export default function ChatWindow({ conversation, isSending, onQuickAction, userProfile }: ChatWindowProps) {
+export default function ChatWindow({
+  conversation,
+  isSending,
+  onQuickAction,
+  userProfile,
+  onLogout
+}: ChatWindowProps) {
   const endRef = useRef<HTMLDivElement | null>(null);
+  const [showProfile, setShowProfile] = useState(false);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -52,8 +66,41 @@ export default function ChatWindow({ conversation, isSending, onQuickAction, use
             ) : null}
           </div>
           {userProfile?.username ? (
-            <div className="h-9 w-9 rounded-full bg-slate-900 text-white text-xs font-semibold flex items-center justify-center">
-              {userProfile.username.slice(0, 2).toUpperCase()}
+            <div className="relative">
+              <button
+                type="button"
+                title="Profile"
+                onClick={() => setShowProfile((prev) => !prev)}
+                className="h-9 w-9 rounded-full bg-slate-900 text-white text-xs font-semibold flex items-center justify-center"
+              >
+                {userProfile.username.slice(0, 2).toUpperCase()}
+              </button>
+              {showProfile && (
+                <div className="absolute right-0 mt-2 w-64 rounded-xl border border-slate-200 bg-white p-4 shadow-lg">
+                  <div className="text-sm font-semibold text-slate-900">{userProfile.username}</div>
+                  {userProfile.lab_institution ? (
+                    <div className="mt-1 text-xs text-slate-500">{userProfile.lab_institution}</div>
+                  ) : null}
+                  {userProfile.email || userProfile.contact_info ? (
+                    <div className="mt-2 text-xs text-slate-600">
+                      {userProfile.email || userProfile.contact_info}
+                    </div>
+                  ) : null}
+                  {userProfile.shipping_address ? (
+                    <div className="mt-2 text-xs text-slate-500">{userProfile.shipping_address}</div>
+                  ) : null}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowProfile(false);
+                      onLogout?.();
+                    }}
+                    className="mt-3 w-full rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                  >
+                    Log out
+                  </button>
+                </div>
+              )}
             </div>
           ) : null}
         </div>
