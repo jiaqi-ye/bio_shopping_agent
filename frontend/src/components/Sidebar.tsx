@@ -28,7 +28,7 @@ export default function Sidebar({
     <aside className="w-[260px] border-r border-slate-200 bg-white h-full flex flex-col">
       <div className="p-4 border-b border-slate-200">
         <div className="mb-4 flex items-center gap-3">
-          <img src={logoUrl} alt="BioShopping Agent" className="h-13 w-13" />
+          <img src={logoUrl} alt="BioShopping Agent" className="h-12 w-12" />
           <div>
             <p className="text-sm font-semibold text-slate-900">BioShopping Agent</p>
             <p className="text-xs text-slate-500">Lab Procurement</p>
