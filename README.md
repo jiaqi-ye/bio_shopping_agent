@@ -94,25 +94,36 @@ The system follows a structured pipeline:
 
 ```bash
 python -m venv .venv
-. .venv/Scripts/activate   # Windows PowerShell: .venv\Scripts\Activate
+
+# Activate virtual environment
+# Windows (PowerShell)
+.venv\Scripts\Activate
+
+# macOS / Linux
+source .venv/bin/activate
+
 pip install -r backend/requirements.txt
 
+# Start backend server
 uvicorn backend.main:app --reload
 
-Backend will run at:
-→ http://127.0.0.1:8000
+Backend will be available at:
 
-→ API Docs: http://127.0.0.1:8000/docs
+API: http://127.0.0.1:8000
 
-### 2. Frontend Setup
+Docs: http://127.0.0.1:8000/docs
+
+2. Frontend Setup
 cd frontend
+
 npm install
 npm run dev
 
-Frontend will run at:
-→ http://127.0.0.1:5173
+Frontend will be available at:
 
-### 3. Environment Configuration (.env)
+App: http://127.0.0.1:5173
+
+3. Environment Configuration (.env)
 
 Create a .env file:
 
@@ -120,33 +131,37 @@ copy .env.example .env
 
 Key variables:
 
-OPENAI_API_KEY — enables LLM features (optional)
+OPENAI_API_KEY — Enables LLM features (optional)
 
-CHAT_MODEL — chat model name
+CHAT_MODEL — Chat model name
 
-EMBEDDING_MODEL — embedding model
+EMBEDDING_MODEL — Embedding model
 
 DATABASE_PATH — SQLite database path
 
-VECTOR_INDEX_PATH — vector index storage
+VECTOR_INDEX_PATH — Vector index storage
 
-VECTOR_META_PATH — metadata storage
+VECTOR_META_PATH — Metadata storage
 
-CORS_ORIGINS — allowed origins
+CORS_ORIGINS — Allowed origins
 
-ENABLE_WEB_SCRAPE — enable vendor scraping
+ENABLE_WEB_SCRAPE — Enable vendor scraping
 
-WEB_ALLOWLIST_DOMAINS — scraping whitelist
+WEB_ALLOWLIST_DOMAINS — Scraping whitelist
 
-BACKEND_PORT / FRONTEND_PORT — ports (Docker only)
+BACKEND_PORT / FRONTEND_PORT — Ports (Docker only)
 
-### 4. Run with Docker (Recommended)
+4. Run with Docker (Recommended)
 docker compose up --build
 
 Services:
 
-Backend → http://127.0.0.1:8000
+Backend: http://127.0.0.1:8000
 
+Frontend: http://127.0.0.1:3000
+
+5. Run Tests
+pytest
 Frontend → http://127.0.0.1:3000
 
 ### 5. Run Tests
