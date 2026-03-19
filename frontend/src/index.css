@@ -1,0 +1,97 @@
+@import url("https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-slate-100 text-slate-900 font-sans antialiased;
+  }
+}
+
+@layer components {
+  .chip {
+    @apply inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-xs text-slate-600;
+  }
+}
+
+
+@layer components {
+  .chat-response {
+    @apply text-sm text-slate-800;
+  }
+  .chat-response p {
+    @apply mb-3;
+  }
+  .chat-response a {
+    @apply text-slate-700 underline underline-offset-2 hover:text-slate-900;
+  }
+  .chat-response table {
+    @apply w-full border-collapse text-xs text-slate-700;
+  }
+  .chat-response table.compact-table {
+    @apply w-full;
+    table-layout: fixed;
+  }
+  .chat-response th {
+    @apply border border-slate-200 bg-slate-50 px-3 py-2 text-left font-semibold;
+  }
+  .chat-response td {
+    @apply border border-slate-200 px-3 py-2 align-top;
+  }
+  .chat-response .compact-table th,
+  .chat-response .compact-table td {
+    @apply whitespace-nowrap overflow-hidden text-ellipsis;
+  }
+  .chat-response .strain-card {
+    @apply mt-3 rounded-xl border border-slate-200 bg-white p-3;
+  }
+  .chat-response .strain-lines {
+    @apply mt-2 space-y-1 text-xs text-slate-600;
+  }
+  .chat-response .profile-prompt,
+  .chat-response .profile-confirm {
+    @apply rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-700;
+  }
+  .chat-response .profile-prompt pre {
+    @apply mt-2 whitespace-pre-wrap text-xs text-slate-600;
+  }
+  .chat-response .detail-block {
+    @apply mt-3;
+  }
+  .chat-response .comparison-block {
+    @apply mt-4;
+  }
+  .chat-response .company-links {
+    @apply mt-3 text-xs text-slate-600;
+  }
+  .chat-response .reference-link {
+    @apply mt-2 text-xs text-slate-600;
+  }
+  .chat-response .common-mice {
+    @apply mt-3;
+  }
+  .chat-response .common-mice-list {
+    @apply list-disc pl-4 text-xs text-slate-700 space-y-2;
+  }
+}
+  .comparison-wrapper {
+    @apply overflow-x-hidden;
+  }
+  .comparison-table {
+    @apply w-full border-collapse text-xs text-slate-700;
+    table-layout: fixed;
+  }
+  .comparison-table th,
+  .comparison-table td {
+    @apply border border-slate-200 px-3 py-2 align-top;
+  }
+  .comparison-table th,
+  .comparison-table td {
+    @apply whitespace-nowrap overflow-hidden text-ellipsis;
+  }
+  .comparison-table tbody tr:nth-child(even) {
+    @apply bg-slate-50;
+  }
+
