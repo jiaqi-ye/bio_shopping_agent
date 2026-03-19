@@ -87,83 +87,76 @@ The system follows a structured pipeline:
 - Docker-ready full-stack system
 
 
-
-## Quick Start
+## 🚀 Quick Start
 
 ### 1. Backend Setup
+Navigate to the root directory to initialize the core service:
 
 ```bash
+# Create virtual environment
 python -m venv .venv
 
-# Activate virtual environment
+# Activate environment
 # Windows (PowerShell)
 .venv\Scripts\Activate
-
 # macOS / Linux
 source .venv/bin/activate
 
+# Install dependencies and run
 pip install -r backend/requirements.txt
-
-# Start backend server
 uvicorn backend.main:app --reload
 ```
 
-Backend will be available at:
+* **API Endpoint:** `http://127.0.0.1:8000`
+* **Interactive Docs:** `http://127.0.0.1:8000/docs`
 
-API: http://127.0.0.1:8000
 
-Docs: http://127.0.0.1:8000/docs
+### 2. Frontend Setup
+In a new terminal window, set up the React dashboard:
 
-2. Frontend Setup
+```bash
 cd frontend
-
 npm install
 npm run dev
+```
 
-Frontend will be available at:
+* **Local URL:** `http://127.0.0.1:5173`
 
-App: http://127.0.0.1:5173
 
-3. Environment Configuration (.env)
+### 3. Environment Configuration (`.env`)
+The Agent's reasoning capabilities depend on your configuration. Initialize it by copying the template:
 
-Create a .env file:
+```bash
+cp .env.example .env
+```
 
-copy .env.example .env
+**Key Configuration Logic:**
+The system uses these variables to drive the **Procurement Logic**:
+* **Lead Time Equation:** $T_{order} = T_{start} - (L_{vendor} + L_{buffer})$
+* **Capacity Check:** $N_{cages} = \lceil \frac{n_{mice}}{k} \rceil$
 
-Key variables:
+| Variable | Description |
+| :--- | :--- |
+| `OPENAI_API_KEY` | Enables LLM reasoning and Agent capabilities |
+| `CHAT_MODEL` | The LLM used for decision making (e.g., `gpt-4o`) |
+| `DATABASE_PATH` | SQLite path for local records |
+| `ENABLE_WEB_SCRAPE` | Allows the Agent to fetch real-time vendor data |
 
-OPENAI_API_KEY — Enables LLM features (optional)
 
-CHAT_MODEL — Chat model name
+### 4. Run with Docker (Recommended)
+Deploy the entire stack (Backend + Frontend + DB) using a single command:
 
-EMBEDDING_MODEL — Embedding model
-
-DATABASE_PATH — SQLite database path
-
-VECTOR_INDEX_PATH — Vector index storage
-
-VECTOR_META_PATH — Metadata storage
-
-CORS_ORIGINS — Allowed origins
-
-ENABLE_WEB_SCRAPE — Enable vendor scraping
-
-WEB_ALLOWLIST_DOMAINS — Scraping whitelist
-
-BACKEND_PORT / FRONTEND_PORT — Ports (Docker only)
-
-4. Run with Docker (Recommended)
+```bash
 docker compose up --build
+```
 
-Services:
+* **Backend:** `http://127.0.0.1:8000`
+* **Frontend:** `http://127.0.0.1:3000`
 
-Backend: http://127.0.0.1:8000
 
-Frontend: http://127.0.0.1:3000
+### 5. Testing
+Ensure the reasoning engine and API routes are functioning correctly:
 
-5. Run Tests
-pytest
-Frontend → http://127.0.0.1:3000
-
-### 5. Run Tests
-pytest -q
+```bash
+pytest -v
+```
