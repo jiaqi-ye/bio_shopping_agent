@@ -90,26 +90,64 @@ The system follows a structured pipeline:
 
 ## Quick Start
 
-### Backend
+### 1. Backend Setup
 
 ```bash
 python -m venv .venv
-. .venv/Scripts/activate
+. .venv/Scripts/activate   # Windows PowerShell: .venv\Scripts\Activate
 pip install -r backend/requirements.txt
+
 uvicorn backend.main:app --reload
-Frontend
+
+Backend will run at:
+→ http://127.0.0.1:8000
+
+→ API Docs: http://127.0.0.1:8000/docs
+
+### 2. Frontend Setup
 cd frontend
 npm install
 npm run dev
 
-Backend: http://127.0.0.1:8000
+Frontend will run at:
+→ http://127.0.0.1:5173
 
-Frontend: http://127.0.0.1:5173
+### 3. Environment Configuration (.env)
 
-Docker
+Create a .env file:
+
 copy .env.example .env
+
+Key variables:
+
+OPENAI_API_KEY — enables LLM features (optional)
+
+CHAT_MODEL — chat model name
+
+EMBEDDING_MODEL — embedding model
+
+DATABASE_PATH — SQLite database path
+
+VECTOR_INDEX_PATH — vector index storage
+
+VECTOR_META_PATH — metadata storage
+
+CORS_ORIGINS — allowed origins
+
+ENABLE_WEB_SCRAPE — enable vendor scraping
+
+WEB_ALLOWLIST_DOMAINS — scraping whitelist
+
+BACKEND_PORT / FRONTEND_PORT — ports (Docker only)
+
+### 4. Run with Docker (Recommended)
 docker compose up --build
 
-Backend: http://127.0.0.1:8000
+Services:
 
-Frontend: http://127.0.0.1:3000
+Backend → http://127.0.0.1:8000
+
+Frontend → http://127.0.0.1:3000
+
+### 5. Run Tests
+pytest -q
