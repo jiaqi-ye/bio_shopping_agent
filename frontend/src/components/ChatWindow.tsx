@@ -28,6 +28,7 @@ type ChatWindowProps = {
     shipping_address?: string;
   };
   onLogout?: () => void;
+  onEditProfile?: () => void;
 };
 
 export default function ChatWindow({
@@ -35,7 +36,8 @@ export default function ChatWindow({
   isSending,
   onQuickAction,
   userProfile,
-  onLogout
+  onLogout,
+  onEditProfile
 }: ChatWindowProps) {
   const endRef = useRef<HTMLDivElement | null>(null);
   const [showProfile, setShowProfile] = useState(false);
@@ -88,6 +90,18 @@ export default function ChatWindow({
                   ) : null}
                   {userProfile.shipping_address ? (
                     <div className="mt-2 text-xs text-slate-500">{userProfile.shipping_address}</div>
+                  ) : null}
+                  {onEditProfile ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowProfile(false);
+                        onEditProfile();
+                      }}
+                      className="mt-3 w-full rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                    >
+                      Edit profile
+                    </button>
                   ) : null}
                   <button
                     type="button"

@@ -167,19 +167,42 @@ def _extract_item_hint(text: str) -> Optional[str]:
     return None
 
 
-def build_procurement_context(user_message: str, cage_config: Optional[Dict[str, int]] = None) -> Dict[str, str]:
-    """Build a context dictionary from local DB and parsed user input."""
-    cage_config = cage_config or _load_cages()
+def build_procurement_context(
+    user_message: str,
+    cage_config: Optional[Dict[str, int]] = None,
+    user_profile: Optional[Dict[str, Any]] = None,
+) -> Dict[str, str]:
+    """Build a context dictionary from login profile + parsed user input."""
     quantity = _extract_quantity(user_message)
     age_weeks = _extract_age_weeks(user_message)
     start_date = _extract_experiment_start_date(user_message)
     item_hint = _extract_item_hint(user_message)
 
-    mice_per_cage = cage_config.get("mice_per_cage", 5)
-    total_cages = cage_config.get("total_cages")
-    required_cages = None
-    if quantity:
-        required_cages = int(math.ceil(quantity / float(mice_per_cage)))
+    profile_current = None
+    profile_capacity = None
+    if user_profile:
+        try:
+            profile_current = int(user_profile.get("current_mouse_count", 0))
+        except Exception:
+            profile_current = None
+        try:
+            profile_capacity = int(user_profile.get("cage_capacity", 0))
+        except Exception:
+            profile_capacity = None
+
+    if profile_capacity is not None:
+        mice_per_cage = "not provided"
+        total_cages = profile_capacity
+        available_capacity = max(profile_capacity - (profile_current or 0), 0)
+        required_cages = quantity if quantity is not None else None
+    else:
+        cage_config = cage_config or _load_cages()
+        mice_per_cage = cage_config.get("mice_per_cage", 5)
+        total_cages = cage_config.get("total_cages")
+        required_cages = None
+        if quantity:
+            required_cages = int(math.ceil(quantity / float(mice_per_cage)))
+        available_capacity = None
 
     context = {
         "requested_item": item_hint or "unknown",
@@ -189,6 +212,8 @@ def build_procurement_context(user_message: str, cage_config: Optional[Dict[str,
         "mice_per_cage": str(mice_per_cage),
         "available_cages": str(total_cages) if total_cages is not None else "unknown",
         "required_cages": str(required_cages) if required_cages is not None else "unknown",
+        "current_mouse_count": str(profile_current) if profile_current is not None else "not provided",
+        "available_capacity": str(available_capacity) if available_capacity is not None else "unknown",
     }
     return context
 
@@ -197,15 +222,34 @@ def build_procurement_context(user_message: str, cage_config: Optional[Dict[str,
 # Legacy template fallback (only used if no LLM)
 # -------------------------------
 
-def build_chat_response(user_message: str, cage_config: Optional[Dict[str, int]] = None) -> Dict[str, Any]:
+def build_chat_response(
+    user_message: str,
+    cage_config: Optional[Dict[str, int]] = None,
+    user_profile: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
     """Fallback response if LLM is unavailable."""
-    context = build_procurement_context(user_message, cage_config=cage_config)
+    context = build_procurement_context(
+        user_message,
+        cage_config=cage_config,
+        user_profile=user_profile,
+    )
+
+    capacity_line = ""
+    if context.get("available_capacity") not in (None, "unknown"):
+        capacity_line = (
+            f"- Current mice: {context['current_mouse_count']}\n"
+            f"- Total capacity: {context['available_cages']}\n"
+            f"- Remaining capacity: {context['available_capacity']}\n"
+        )
+    else:
+        capacity_line = f"- Cages available: {context['available_cages']} (estimated needed: {context['required_cages']})\n"
+
     reply = (
-        "I can help with procurement. Based on local lab context:\n"
+        "I can help with procurement. Based on your lab context:\n"
         f"- Requested item: {context['requested_item']}\n"
         f"- Quantity: {context['quantity']}\n"
         f"- Age: {context['age_weeks']} weeks\n"
-        f"- Cages available: {context['available_cages']} (estimated needed: {context['required_cages']})\n\n"
+        f"{capacity_line}\n"
         "Please provide any specific strain, vendor preference, or experiment start date."
     )
     return {"reply": reply, "email": None}

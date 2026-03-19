@@ -82,6 +82,7 @@ export default function App() {
   const [draft, setDraft] = useState<string>("");
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [showLogin, setShowLogin] = useState<boolean>(false);
+  const [showProfileEdit, setShowProfileEdit] = useState<boolean>(false);
   const [isSending, setIsSending] = useState<boolean>(false);
 
   const apiBase = (import.meta.env.VITE_API_BASE ?? "").replace(/\/$/, "");
@@ -201,6 +202,34 @@ export default function App() {
     setShowLogin(false);
   };
 
+  const handleProfileUpdate = async (payload: {
+    username: string;
+    lab_institution: string;
+    contact_info: string;
+    password: string;
+    shipping_address: string;
+    current_mouse_count: number;
+    cage_capacity: number;
+  }) => {
+    if (!userProfile?.user_id) return;
+    const response = await fetch(loginUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ...payload,
+        user_id: userProfile.user_id,
+        position: "",
+        email: payload.contact_info
+      })
+    });
+    if (!response.ok) {
+      throw new Error("Update failed");
+    }
+    const data = (await response.json()) as UserProfile;
+    setUserProfile(data);
+    setShowProfileEdit(false);
+  };
+
   const handleLogout = () => {
     window.localStorage.removeItem(sessionIdKey);
     setUserProfile(null);
@@ -281,6 +310,27 @@ export default function App() {
     <div className="min-h-screen bg-slate-100 text-slate-900">
       <div className="flex h-screen">
         <LoginModal open={showLogin} onSubmit={handleLogin} />
+        <LoginModal
+          open={showProfileEdit}
+          onSubmit={handleProfileUpdate}
+          onClose={() => setShowProfileEdit(false)}
+          title="Edit Profile"
+          description="Update your lab profile details."
+          submitLabel="Save"
+          initialValues={
+            userProfile
+              ? {
+                  username: userProfile.username,
+                  lab_institution: userProfile.lab_institution,
+                  contact_info: userProfile.contact_info,
+                  password: "",
+                  shipping_address: userProfile.shipping_address,
+                  current_mouse_count: userProfile.current_mouse_count,
+                  cage_capacity: userProfile.cage_capacity
+                }
+              : undefined
+          }
+        />
         <Sidebar
           conversations={sortedConversations}
           activeId={activeId}
@@ -298,6 +348,7 @@ export default function App() {
               onQuickAction={userProfile ? handleQuickAction : undefined}
               userProfile={userProfile}
               onLogout={handleLogout}
+              onEditProfile={() => setShowProfileEdit(true)}
             />
           </div>
           <InputBox

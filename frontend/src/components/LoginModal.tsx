@@ -1,4 +1,5 @@
-﻿import { useState } from "react";
+import { useEffect, useState } from "react";
+import logoUrl from "../assets/logo.svg";
 
 type LoginModalProps = {
   open: boolean;
@@ -11,18 +12,56 @@ type LoginModalProps = {
     current_mouse_count: number;
     cage_capacity: number;
   }) => Promise<void> | void;
+  initialValues?: Partial<{
+    username: string;
+    lab_institution: string;
+    contact_info: string;
+    password: string;
+    shipping_address: string;
+    current_mouse_count: number;
+    cage_capacity: number;
+  }>;
+  title?: string;
+  description?: string;
+  submitLabel?: string;
+  onClose?: () => void;
 };
 
-export default function LoginModal({ open, onSubmit }: LoginModalProps) {
+export default function LoginModal({
+  open,
+  onSubmit,
+  initialValues,
+  title = "Lab User Login",
+  description = "Provide your lab profile to continue.",
+  submitLabel = "Sign in",
+  onClose
+}: LoginModalProps) {
   const [username, setUsername] = useState("");
   const [labInstitution, setLabInstitution] = useState("");
   const [contactInfo, setContactInfo] = useState("");
   const [password, setPassword] = useState("");
   const [shippingAddress, setShippingAddress] = useState("");
-  const [currentMouseCount, setCurrentMouseCount] = useState("0");
-  const [cageCapacity, setCageCapacity] = useState("0");
+  const [currentMouseCount, setCurrentMouseCount] = useState("");
+  const [cageCapacity, setCageCapacity] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    setUsername(initialValues?.username ?? "");
+    setLabInstitution(initialValues?.lab_institution ?? "");
+    setContactInfo(initialValues?.contact_info ?? "");
+    setPassword(initialValues?.password ?? "");
+    setShippingAddress(initialValues?.shipping_address ?? "");
+    setCurrentMouseCount(
+      initialValues?.current_mouse_count !== undefined
+        ? String(initialValues.current_mouse_count)
+        : ""
+    );
+    setCageCapacity(
+      initialValues?.cage_capacity !== undefined ? String(initialValues.cage_capacity) : ""
+    );
+  }, [open, initialValues]);
 
   if (!open) return null;
 
@@ -49,9 +88,22 @@ export default function LoginModal({ open, onSubmit }: LoginModalProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40">
-      <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
-        <h2 className="text-lg font-semibold text-slate-900">Lab User Login</h2>
-        <p className="mt-1 text-xs text-slate-500">Provide your lab profile to continue.</p>
+      <div className="relative w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+        {onClose ? (
+          <button
+            type="button"
+            onClick={onClose}
+            className="absolute right-3 top-3 text-slate-400 hover:text-slate-600"
+            aria-label="Close"
+          >
+            ✕
+          </button>
+        ) : null}
+        <div className="flex flex-col items-center">
+          <img src={logoUrl} alt="BioShopping Agent" className="h-24 w-24" />
+          <h2 className="mt-3 text-lg font-semibold text-slate-900">{title}</h2>
+        </div>
+        <p className="mt-1 text-xs text-slate-500">{description}</p>
         <div className="mt-4 grid gap-3">
           <input
             className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
@@ -115,7 +167,7 @@ export default function LoginModal({ open, onSubmit }: LoginModalProps) {
           }
           className="mt-4 w-full rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:bg-slate-300"
         >
-          {loading ? "Signing in..." : "Sign in"}
+          {loading ? "Saving..." : submitLabel}
         </button>
       </div>
     </div>

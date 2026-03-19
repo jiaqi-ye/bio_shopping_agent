@@ -1,0 +1,37 @@
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Chat bubble -->
+  <path d="M136 62H190C201.046 62 210 70.9543 210 82V124C210 135.046 201.046 144 190 144H151L132 162V144H136C124.954 144 116 135.046 116 124V82C116 70.9543 124.954 62 136 62Z" fill="#DBEAFE"></path>
+
+  <!-- Bubble accent lines -->
+  <rect x="140" y="90" width="34" height="8" rx="4" fill="#2563EB"></rect>
+  <rect x="140" y="106" width="24" height="8" rx="4" fill="#60A5FA"></rect>
+
+  <!-- Mouse body -->
+  <ellipse cx="102" cy="154" rx="44" ry="30" fill="#1D4ED8"></ellipse>
+
+  <!-- Mouse head -->
+  <circle cx="67" cy="146" r="20" fill="#1D4ED8"></circle>
+
+  <!-- Ear -->
+  <circle cx="54" cy="128" r="10" fill="#93C5FD"></circle>
+  <circle cx="75" cy="125" r="8" fill="#93C5FD"></circle>
+
+  <!-- Belly -->
+  <ellipse cx="108" cy="160" rx="20" ry="13" fill="#BFDBFE"></ellipse>
+
+  <!-- Eye -->
+  <circle cx="64" cy="143" r="3.5" fill="#0F172A"></circle>
+
+  <!-- Nose -->
+  <circle cx="48" cy="149" r="4" fill="#60A5FA"></circle>
+
+  <!-- Tail -->
+  <path d="M146 160C165 164 181 174 191 189" stroke="#3B82F6" stroke-width="7" stroke-linecap="round"></path>
+
+  <!-- Agent dots -->
+  <circle cx="92" cy="154" r="6" fill="#DBEAFE"></circle>
+  <circle cx="110" cy="143" r="6" fill="#93C5FD"></circle>
+  <circle cx="127" cy="156" r="6" fill="#BFDBFE"></circle>
+
+  <path d="M92 154L110 143L127 156" stroke="#DBEAFE" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>

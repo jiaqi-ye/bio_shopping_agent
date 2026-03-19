@@ -381,6 +381,21 @@ def _build_order_links(strain: Optional[str]) -> str:
     return "<br />".join(links)
 
 
+def _select_vendor_for_strain(strain: Optional[str]) -> Optional[str]:
+    vendors = load_vendors_snapshot()
+    if not vendors:
+        return None
+    if strain:
+        for name in VENDOR_PRIORITY:
+            vendor = next((v for v in vendors if v.get("name") == name), None)
+            if not vendor:
+                continue
+            available = vendor.get("available_strains") or {}
+            if not available or strain in available:
+                return name
+    return vendors[0].get("name")
+
+
 def _build_rfq_email_template(
     profile: Optional[Dict[str, Any]],
     company: Optional[str],
@@ -392,6 +407,7 @@ def _build_rfq_email_template(
     position = (profile or {}).get("position") or ""
     lab_institution = (profile or {}).get("lab_institution") or ""
     contact_info = (profile or {}).get("contact_info") or ""
+    email = (profile or {}).get("email") or ""
     address = (profile or {}).get("shipping_address") or "Shipping Address"
     strain_line = strain or "Strain: [please specify]"
     quantity_line = f"{quantity}" if quantity else "[quantity]"
@@ -421,6 +437,8 @@ def _build_rfq_email_template(
         body_lines.append(lab_institution)
     if contact_info:
         body_lines.append(contact_info)
+    if email and email not in contact_info:
+        body_lines.append(email)
 
     body = "\n".join(body_lines).rstrip() + "\n"
     return (
@@ -433,7 +451,8 @@ def _build_rfq_email_template(
 
 
 def _extract_request_from_history(
-    history: List[Dict[str, str]]
+    history: List[Dict[str, str]],
+    profile: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Optional[str]]:
     company: Optional[str] = None
     strain: Optional[str] = None
@@ -447,7 +466,7 @@ def _extract_request_from_history(
         text = item.get("content", "")
         if not text:
             continue
-        context = build_procurement_context(text, cage_config=get_cage_config())
+        context = build_procurement_context(text, cage_config=get_cage_config(), user_profile=profile)
         if not company:
             companies = _detect_companies(text)
             if companies:
@@ -798,7 +817,7 @@ def handle_message(message: str, conversation_id: Optional[str], user_id: Option
         if companies_in_message:
             company = companies_in_message[0]
         strain = _extract_mouse_strain(message)
-        context = build_procurement_context(message, cage_config=get_cage_config())
+        context = build_procurement_context(message, cage_config=get_cage_config(), user_profile=profile)
         experiment_start = context.get("experiment_start") if context else None
         quantity = None
         try:
@@ -806,7 +825,7 @@ def handle_message(message: str, conversation_id: Optional[str], user_id: Option
         except Exception:
             quantity = None
 
-        history_context = _extract_request_from_history(history)
+        history_context = _extract_request_from_history(history, profile=profile)
         company = company or history_context.get("company")
         strain = strain or history_context.get("strain")
         if not quantity:
@@ -815,6 +834,7 @@ def handle_message(message: str, conversation_id: Optional[str], user_id: Option
             except Exception:
                 quantity = None
         experiment_start = experiment_start or history_context.get("experiment_start")
+        company = company or _select_vendor_for_strain(strain)
 
         email_block = _build_rfq_email_template(profile, company, strain, quantity, experiment_start)
         paragraph = (
@@ -872,7 +892,7 @@ def handle_message(message: str, conversation_id: Optional[str], user_id: Option
         }
 
     cage_config = get_cage_config()
-    context = build_procurement_context(message, cage_config=cage_config)
+    context = build_procurement_context(message, cage_config=cage_config, user_profile=profile)
 
     try:
         quantity = int(context.get("quantity", "0"))
@@ -918,7 +938,7 @@ def handle_message(message: str, conversation_id: Optional[str], user_id: Option
     )
 
     if not reply:
-        response = build_chat_response(message, cage_config=cage_config)
+        response = build_chat_response(message, cage_config=cage_config, user_profile=profile)
         reply = response.get("reply", "")
 
     memory_reply = reply

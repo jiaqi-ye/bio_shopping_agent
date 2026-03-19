@@ -1,3 +1,7 @@
+<img src="frontend/src/assets/logo.svg" width="120" alt="BioShopping Agent Logo" />
+
+<img width="2544" height="1349" alt="image" src="https://github.com/user-attachments/assets/82c9fa3c-8e68-4448-9f98-9b11b767cd70" />
+
 # BioShopping Agent (Research Animals Procurement Assistant)
 
 Full-stack demo for laboratory animal procurement with a FastAPI + SQLite backend, a React + Vite frontend, and optional OpenAI + RAG support.
